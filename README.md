@@ -106,4 +106,4 @@ Because the backend uses a heavy AI classification model (`Segformer`), it requi
 ---
 
 ## ⚖️ License
-MIT License. Created with ❤️ for fashion enthusiasts.
+MIT License. Made with ❤️ by Kobuilds for fashion enthusiasts.
