@@ -140,8 +140,8 @@ body {
 
 /* Results Grid */
 .results-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: 24px;
 }
 
@@ -154,6 +154,9 @@ body {
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     opacity: 0;
     transform: translateY(30px);
+    display: flex;
+    flex-direction: row;
+    height: 180px;
 }
 
 .product-card.reveal {
@@ -167,32 +170,43 @@ body {
 }
 
 .p-img-box {
-    width: 100%;
-    height: 350px;
+    width: 180px;
+    height: 100%;
     overflow: hidden;
     position: relative;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-right: 1px solid rgba(0,0,0,0.05);
 }
 
 .p-img-box img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    max-width: 90%;
+    max-height: 90%;
+    width: auto;
+    height: auto;
+    object-fit: scale-down;
     transition: transform 0.5s ease;
+    mix-blend-mode: multiply; /* Helps integrate white backgrounds */
 }
 
 .product-card:hover .p-img-box img {
-    transform: scale(1.1);
+    transform: scale(1.05);
 }
 
 .p-info {
-    padding: 20px;
+    padding: 24px 30px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
+    flex: 1;
+    justify-content: center;
 }
 
 .p-brand {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -200,17 +214,22 @@ body {
 }
 
 .p-name {
-    font-size: 18px;
+    font-size: 22px;
     font-weight: 700;
     margin: 0;
     line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .p-rating {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-muted);
 }
 
@@ -229,7 +248,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 8px;
+    margin-top: auto;
+    padding-top: 10px;
 }
 
 .p-price {
@@ -239,19 +259,20 @@ body {
 }
 
 .shop-now {
-    padding: 10px 18px;
+    padding: 12px 24px;
     background: #111;
     color: white;
     border-radius: 12px;
     text-decoration: none;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     transition: background 0.2s, transform 0.2s;
 }
 
 .shop-now:hover {
-    background: #333;
+    background: var(--accent);
     transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(230, 0, 35, 0.3);
 }
 
 .loading-state {

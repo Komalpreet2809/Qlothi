@@ -64,6 +64,12 @@ function injectButton() {
 }
 
 function analyzeImage(imageUrl) {
+  // Guard: if extension was reloaded, chrome.runtime becomes undefined
+  if (!chrome.runtime || !chrome.runtime.sendMessage) {
+    alert("Qlothi extension was reloaded. Please refresh this Pinterest page and try again.");
+    return;
+  }
+
   console.log("Preparing to send image to backend...");
   
   const pinBtns = document.querySelectorAll('.qlothi-btn');
@@ -339,21 +345,15 @@ function createModal(items, imageUrl) {
 
       // Create HTML Label (Shop link)
       const label = document.createElement('button');
-      label.className = 'qlothi-shop-label';
+      label.className = 'qlothi-shop-circle';
       
-      // Format the class name nicely (e.g., "upper-clothes" -> "Upper Clothes")
       const displayClass = item.class_name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-      label.innerHTML = `Shop ${displayClass} <span class="qlothi-icon">↗</span>`;
+      label.title = `Shop ${displayClass}`;
       
       label.style.position = 'absolute';
       label.style.top = `${dy}px`;
-      if (pointRight) {
-          label.style.left = `${dx + 16}px`; // padding from right dot
-          label.style.transform = 'translateY(-50%)';
-      } else {
-          label.style.right = `${imgWidth - dx + 16}px`; // padding from left dot
-          label.style.transform = 'translateY(-50%)';
-      }
+      label.style.left = `${dx}px`;
+      label.style.transform = 'translate(-50%, -50%)';
 
       label.addEventListener('click', (e) => {
         e.preventDefault();

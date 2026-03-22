@@ -32,11 +32,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 else starsHtml += '☆';
             }
             
-            const itemPrice = typeof item.price === 'string' ? item.price : item.price.toLocaleString('en-IN');
-            
+            const storeInitial = (item.store || item.name || '?')[0].toUpperCase();
             card.innerHTML = `
                 <div class="p-img-box">
-                    <img src="${item.image}" alt="${item.name}">
+                    <img src="${item.image}" alt="${item.name}" 
+                         onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=&quot;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#ffecd2,#fcb69f);font-size:64px;font-weight:900;color:rgba(0,0,0,0.15);&quot;>${storeInitial}</div>'">
                 </div>
                 <div class="p-info">
                     <div class="p-brand">${item.store || 'Store'}</div>
@@ -46,8 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="rating-val">${item.rating || '4.0'}</span>
                         <span class="reviews">(${item.reviews || '12'})</span>
                     </div>
-                    <div class="p-price-row">
-                        <span class="p-price">₹${itemPrice}</span>
+                    <div class="p-price-row" style="justify-content: flex-end;">
                         <a href="${item.link || '#'}" target="_blank" class="shop-now">Buy Now</a>
                     </div>
                 </div>
@@ -94,8 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const croppedBase64 = canvas.toDataURL('image/jpeg', 0.9);
                 
-                // Display the cropped image in the sidebar
-                document.getElementById('source-image').src = croppedBase64;
+                // Display the full image in the sidebar per user request
+                document.getElementById('source-image').src = response.base64_image;
 
                 // Send POST to backend via proxy
                 chrome.runtime.sendMessage({ action: "visualSearch", base64_image: croppedBase64 }, (res) => {
@@ -130,20 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const sourceImg = data.img || '';
         const bbox = data.bbox; 
 
-        // Set External Search Links
-        document.getElementById('google-link').href = `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(itemName)}`;
-        document.getElementById('pinterest-link').href = `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(itemName)}`;
-
         doVisualSearch(itemName, sourceImg, bbox);
-    });
-
-    // Filter Logic
-    const filterBtns = document.querySelectorAll('.filter-btn');
-    filterBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            filterBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            renderItems(btn.dataset.filter);
-        });
     });
 });

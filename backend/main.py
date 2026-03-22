@@ -217,9 +217,34 @@ async def visual_search(request: VisualSearchRequest):
                                 break
                                 
                             try:
-                                # Extract image
-                                img_tag = card.find('img')
-                                img_url = img_tag['src'] if img_tag and 'src' in img_tag.attrs else "https://picsum.photos/400/600"
+                                # Extract image with higher resolution logic
+                                import re
+                                img_url = None
+                                imgs = card.find_all('img')
+                                for img in imgs:
+                                    # Prefer data attributes which often hold the lazy-loaded high-res image
+                                    for attr in ['data-src', 'data-thumbnail-url', 'src']:
+                                        val = img.get(attr, '')
+                                        if val and val.startswith('http'):
+                                            img_url = val
+                                            break
+                                    if img_url:
+                                        break
+                                
+                                if not img_url:
+                                    img_tag = card.find('img')
+                                    img_url = str(img_tag['src']) if img_tag and 'src' in img_tag.attrs else "https://picsum.photos/400/600"
+                                else:
+                                    img_url = str(img_url)
+                                
+                                # Attempt to upscale Google Image thumbnails
+                                if 'encrypted-tbn' in img_url:
+                                    if img_url.endswith('&s'):
+                                        img_url = img_url[:-2]
+                                    img_url = img_url.replace('&s&', '&')
+                                elif 'googleusercontent.com' in img_url:
+                                    img_url = re.sub(r'=w\d+-h\d+.*', '=w800-h1000', img_url)
+                                    img_url = re.sub(r'=s\d+.*', '=s1000', img_url)
                                 
                                 # Extract link
                                 a_tag = card.find('a')
