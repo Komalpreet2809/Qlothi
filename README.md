@@ -105,4 +105,4 @@ Because the backend uses a heavy AI classification model (`Segformer`), it requi
 
 ---
 
- Made with ❤️ by Kobuilds for fashion enthusiasts.
+ Made with ❤️ by Komal for fashion enthusiasts.
