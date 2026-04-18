@@ -247,7 +247,7 @@ async def root():
             <div class="container">
                 <h1>✨ Qlothi Backend API</h1>
                 <p>The AI segmentation engine is online and listening for extension requests.</p>
-                <footer>Made with ❤️ by <strong>Kobuilds</strong></footer>
+                <footer>Made with ❤️ by <strong>Komal</strong></footer>
             </div>
         </body>
     </html>
