@@ -43,7 +43,8 @@ async function performOptimizedLensSearch(base64Image) {
     const tab = await chrome.tabs.create({ url: 'https://images.google.com/', active: false });
     lensTabId = tab.id;
     
-    // We don't even wait for the full page to load. We immediately inject an aggressive Poller!
+    // We MUST wait for the page to exist before injecting, otherwise Chrome blocks it
+    await waitForTabLoadFast(lensTabId);
     await delay(500); 
 
     console.log("[Qlothi] Injecting rapid upload script...");
@@ -154,17 +155,41 @@ async function performOptimizedLensSearch(base64Image) {
             return priceMatch ? priceMatch[0] : '';
           }
           
-          function findBestImage(el) {
-             let imgs = el.querySelectorAll('img');
-             for (let img of imgs) {
-                 let src = img.src || img.getAttribute('data-src');
-                 if (src && !src.includes('favicon') && !src.startsWith('data:image/svg') && src.length > 50) {
-                     // upscale
-                     src = src.replace(/=w\d+-h\d+.*$/, '=w800-h1000').replace(/=s\d+.*$/, '=s1000');
-                     return src;
+          function findBestImage(element) {
+             const searchRoots = [element];
+             if (element.parentElement) searchRoots.push(element.parentElement);
+             if (element.parentElement?.parentElement) searchRoots.push(element.parentElement.parentElement);
+             
+             let bestSrc = '';
+             for (const root of searchRoots) {
+               const candidateImages = root.querySelectorAll('img');
+               for (const img of candidateImages) {
+                 const src = img.getAttribute('data-src') || img.getAttribute('data-iurl') || img.src;
+                 if (!src) continue;
+                 if (src.startsWith('data:image/svg')) continue;
+                 if (src.includes('favicon') || src.includes('/s2/') || src.includes('logo') || src.includes('merchant')) continue;
+                 
+                 let pLink = img.closest('a');
+                 if (pLink) {
+                    const attrs = pLink.getAttributeNames();
+                    for (const attr of attrs) {
+                        const val = pLink.getAttribute(attr);
+                        if (val && typeof val === 'string' && val.startsWith('http') && val.match(/\.(jpe?g|png|webp|avif)/i)) {
+                            if (!val.includes('google.') && !val.includes('gstatic.') && !val.includes('logo')) {
+                                return val; // Real source URL
+                            }
+                        }
+                    }
                  }
+                 if (src.includes('encrypted-tbn') || src.includes('googleusercontent.com')) {
+                     return src; // Google thumbnail
+                 }
+                 if (src.startsWith('data:') && src.length > 1000 && !bestSrc) {
+                     bestSrc = src;
+                 }
+               }
              }
-             return '';
+             return bestSrc;
           }
 
           const poller = setInterval(() => {
@@ -201,6 +226,15 @@ async function performOptimizedLensSearch(base64Image) {
                
                let imgSrc = findBestImage(card);
                if (!imgSrc) return;
+               
+               // Upscale
+               if (imgSrc.includes('encrypted-tbn')) {
+                 if (imgSrc.endsWith('&s')) imgSrc = imgSrc.substring(0, imgSrc.length - 2);
+                 imgSrc = imgSrc.replace('&s&', '&');
+               } else if (imgSrc.includes('googleusercontent.com')) {
+                 imgSrc = imgSrc.replace(/=w\d+-h\d+.*$/, '=w800-h1000');
+                 imgSrc = imgSrc.replace(/=s\d+.*$/, '=s1000');
+               }
                
                let text = card.innerText || '';
                if (text.length < 5) return;

@@ -46,7 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="rating-val">${item.rating || '4.0'}</span>
                         <span class="reviews">(${item.reviews || '12'})</span>
                     </div>
-                    <div class="p-price-row" style="justify-content: flex-end;">
+                    <div class="p-price-row">
+                        <div class="p-price">${item.price !== '—' && item.price ? item.price : 'Check Site'}</div>
                         <a href="${item.link || '#'}" target="_blank" class="shop-now">Buy Now</a>
                     </div>
                 </div>

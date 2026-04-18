@@ -160,7 +160,7 @@ body {
     transform: translateY(30px);
     display: flex;
     flex-direction: row;
-    height: 180px;
+    min-height: 180px;
 }
 
 .product-card.reveal {
