@@ -1,29 +1,31 @@
-# Qlothi: AI-Powered Fashion Hub for Pinterest
+# Qlothi: AI-Powered Multimodal Fashion Search
 
-**Qlothi** is a Chrome extension that transforms your Pinterest experience into a smart fashion shopping and analysis tool. With Qlothi, you can analyze outfits within images, segment individual clothing items, and find similar products across the web using Google Lens integration.
-
----
-
-## 🚀 Key Features
-
-- **Outfit Segmentation**: Uses the `Segformer` (MATTMDJAGA/segformer_b2_clothes) transformer model to accurately identify and segment hats, sunglasses, upper clothes, skirts, pants, dresses, belts, bags, and scarves.
-- **Visual Search**: Integrated Google Lens visual search to find exact or similar matches for segmented items.
-- **Interactive UI**: A sleek, glassmorphism-inspired overlay that fits naturally into the Pinterest interface.
-- **Smart Filtering**: Filter search results by budget, style, or luxury categories.
+**Qlothi** is a state-of-the-art Chrome extension that transforms your Pinterest experience into a hyper-intelligent fashion shopping ecosystem. It leverages cutting-edge Vision-Language Models (VLM) and local browser-based scraping to find, save, and curate fashion items in real-time.
 
 ---
 
-## 🛠️ Tech Stack
+## ✨ High-End Features
 
-### Backend
-- **Framework**: [FastAPI](https://fastapi.tiangolo.com/)
-- **AI Models**: Hugging Face Transformers (`Segformer`), PyTorch, OpenCV
-- **Web Automation**: [Playwright](https://playwright.dev/python/) & BeautifulSoup4 for Google Lens integration
+- **AI Multimodal Search**: Uses **Salesforce BLIP** (Vision-Language Model) to generate semantic descriptions of clothing (e.g., *"A vintage denim jacket with sherpa lining"*) and injects them into search queries for extreme accuracy.
+- **Outfit Segmentation**: Uses the **Segformer** transformer model to precisely identify and isolate individual garments within high-density Pinterest images.
+- **Virtual Wardrobe (Wishlist)**: A dedicated persistent storage dashboard. Save your favorite finds with a single click and access them anytime via the extension's toolbar popup.
+- **India Localization**: Hard-coded to prioritize Indian retailers (Amazon.in, Myntra, Ajio, Nykaa, etc.) while automatically filtering out non-shipping international domains and foreign currencies ($/€/£).
+- **Glassmorphism UI**: A premium, motion-heavy interface that blends seamlessly with modern web design aesthetics.
+- **Free & Unlimited**: Unlike other tools, Qlothi uses local browser logic to scrape Google Lens, requiring zero expensive third-party API keys for visual search.
+
+---
+
+## 🛠️ Architecture
+
+### AI Backend (FastAPI)
+- **Segmentation**: Segformer (`mattmdjaga/segformer_b2_clothes`)
+- **Vision-Language**: BLIP (`Salesforce/blip-image-captioning-base`)
+- **Hosting**: Hugging Face Spaces (GPU/CPU)
 
 ### Frontend (Chrome Extension)
-- **Standard**: Manifest V3
-- **Logic**: Vanilla JavaScript
-- **Styling**: Vanilla CSS (Premium Glassmorphism Design)
+- **Manifest V3**: Using modern Service Worker architectures.
+- **Active Polling Scraper**: A 100ms ultra-fast DOM polling engine that manages invisible browser tabs for Google Lens.
+- **Storage**: Chrome Local Storage for persistent "Virtual Wardrobe" items.
 
 ---
 
@@ -31,78 +33,42 @@
 
 ```bash
 Qlothi/
-├── backend/            # FastAPI server & AI logic
-│   ├── main.py        # API endpoints and model integration
+├── backend/            # FastAPI AI Server
+│   ├── main.py        # Segmentation & VLM logic
+│   ├── Dockerfile
 │   └── requirements.txt
-├── extension/          # Chrome extension files
+├── extension/          # Chrome Extension
 │   ├── manifest.json
-│   ├── content.js      # Pinterest DOM interaction
-│   └── background.js   # Service worker
+│   ├── background.js   # AI Orchestrator & Scraper
+│   ├── content.js      # Pinterest Injection
+│   ├── results.js/css  # Search UI
+│   └── popup.js/css    # Wardrobe Dashboard
 └── README.md
 ```
 
 ---
 
-## ⚙️ Setup Instructions
+## ⚙️ Installation
 
-### 1. Backend Setup (Windows/Linux/macOS)
+### 1. Backend (Already Deployed)
+The backend is currently hosted at: `https://komalsohal-qlothi.hf.space/`
 
-1. Navigate to the backend directory:
-   ```powershell
-   cd backend
-   ```
-2. Create and activate a virtual environment:
-   ```powershell
-   python -m venv venv
-   .\venv\Scripts\activate  # Windows
-   # source venv/bin/activate # Linux/macOS
-   ```
-3. Install dependencies:
-   ```powershell
-   pip install -r requirements.txt
-   ```
-4. Install Playwright browsers:
-   ```powershell
-   playwright install chromium
-   ```
-5. Start the server:
-   ```powershell
-   python main.py
-   ```
-   *The server will run at `http://localhost:8000`.*
-
-### 2. Chrome Extension Setup
-
+### 2. Chrome Extension
 1. Open Chrome and navigate to `chrome://extensions/`.
-2. Enable **Developer mode** (top right corner).
+2. Enable **Developer mode**.
 3. Click **Load unpacked**.
-4. Select the `extension` folder within the Qlothi project directory.
+4. Select the `/extension` folder from this repository.
 
 ---
 
 ## 💡 Usage
 
-1. Open any [Pinterest](https://www.pinterest.com) pin containing an outfit.
-2. Click the **Analyze Outfit** button (integrated into the Pinterest UI).
-3. Interact with the segmented clothing items to find similar products.
+1. **Pinterest**: Open any pin. Click the **Analyze Outfit** button on the image.
+2. **Interact**: Click on the visual dots to trigger an AI search.
+3. **Save**: Click the Heart (♥️) button on any product card to save it.
+4. **Wardrobe**: Click the Qlothi icon in your browser toolbar to view your saved fashion items.
 
 ---
 
-## 🌐 Deployment
+Made with ❤️ for the future of fashion.
 
-### Part 1: FastAPI Backend (Hugging Face Spaces, Render, or Railway)
-Because the backend uses a heavy AI classification model (`Segformer`), it requires a cloud host with at least **2GB to 4GB of RAM**:
-1. Add a `Dockerfile` and push your `backend` directory to a GitHub repository.
-2. Link your GitHub repository to a cloud service like Render or Hugging Face.
-3. Configure the start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-4. Once successfully deployed, copy your new live URL (e.g., `https://qlothi-api.onrender.com`).
-
-### Part 2: Publish the Chrome Extension
-1. Open your extension's JavaScript files (`background.js`, `content.js`) and replace any instances of `http://localhost:8000` with your new live backend URL.
-2. Zip the entire `/extension` folder (make sure `manifest.json` is at the root of the zip file, and not buried in a subfolder).
-3. Navigate to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole/).
-4. Click **New Item**, upload the Zip, fill out your store listing details, and click **Submit for Review**.
-
----
-
- Made with ❤️ by Komal for fashion enthusiasts.
