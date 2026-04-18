@@ -276,7 +276,7 @@ async function performOptimizedLensSearch(base64Image) {
                let price = extractPrice(rawText) || extractPrice(link.getAttribute('aria-label'));
 
                // Drop known non-deliverable international domains AND non-shopping social media sites
-               const badDomains = ['.co.uk', '.de', '.fr', '.au', '.ca', 'etsy.', 'ebay.com', 'walmart', 'target', 'instagram.com', 'pinterest.'];
+               const badDomains = ['.co.uk', '.de', '.fr', '.au', '.ca', 'etsy.', 'ebay.com', 'walmart', 'target', 'instagram.com', 'pinterest.', 'facebook.com'];
                if (badDomains.some(bd => link.href.toLowerCase().includes(bd))) return;
 
                seen.add(link.href);
