@@ -161,12 +161,17 @@ async function performOptimizedLensSearch(base64Image) {
              if (element.parentElement?.parentElement) searchRoots.push(element.parentElement.parentElement);
              
              let bestSrc = '';
+             let maxArea = 0;
              for (const root of searchRoots) {
                const candidateImages = root.querySelectorAll('img');
                for (const img of candidateImages) {
                  const src = img.getAttribute('data-src') || img.getAttribute('data-iurl') || img.src;
                  if (!src) continue;
                  if (src.startsWith('data:image/svg')) continue;
+                 
+                 // Reject tiny UI icons and favicons
+                 const rect = img.getBoundingClientRect();
+                 if (rect.width > 0 && rect.width < 50) continue; 
                  if (src.includes('favicon') || src.includes('/s2/') || src.includes('logo') || src.includes('merchant')) continue;
                  
                  let pLink = img.closest('a');
@@ -181,11 +186,15 @@ async function performOptimizedLensSearch(base64Image) {
                         }
                     }
                  }
-                 if (src.includes('encrypted-tbn') || src.includes('googleusercontent.com')) {
-                     return src; // Google thumbnail
-                 }
-                 if (src.startsWith('data:') && src.length > 1000 && !bestSrc) {
+                 
+                 let area = rect.width * rect.height;
+                 if (area > maxArea || (!bestSrc && src.includes('encrypted-tbn'))) {
+                     maxArea = area > maxArea ? area : 1;
                      bestSrc = src;
+                 }
+                 if (src.startsWith('data:') && src.length > 2000 && area <= 0) {
+                     // Probably the main image but rect not rendered fully yet
+                     if (!bestSrc || bestSrc.length < src.length) bestSrc = src;
                  }
                }
              }
@@ -194,7 +203,7 @@ async function performOptimizedLensSearch(base64Image) {
 
           const poller = setInterval(() => {
             attempts++;
-            if (attempts > 50) { // Give up after 10 seconds empty
+            if (attempts > 150) { // Give up after 15 seconds empty
               clearInterval(poller);
               resolve([]);
               return;
@@ -236,20 +245,35 @@ async function performOptimizedLensSearch(base64Image) {
                  imgSrc = imgSrc.replace(/=s\d+.*$/, '=s1000');
                }
                
-               let text = card.innerText || '';
-               if (text.length < 5) return;
-               
-               let name = link.getAttribute('aria-label') || '';
-               if (!name || name.length < 5) {
-                   const lines = text.split('\\n').filter(l => l.length > 5 && !l.includes('₹') && !l.includes('$'));
-                   name = lines[0] || 'Product';
-               }
-               
-               let price = extractPrice(text) || extractPrice(link.getAttribute('aria-label'));
-               
                let store = 'Store';
                try { store = new URL(link.href).hostname.replace('www.','').split('.')[0]; } catch(e){}
                store = store.charAt(0).toUpperCase() + store.substring(1);
+
+               let rawText = card.innerText || '';
+               let textSegments = rawText.split('\\n').map(s => s.trim()).filter(s => s.length > 2);
+               // Try real newline splitting if \\n literal didn't split it (since script execution handles literal newlines differently)
+               if (textSegments.length <= 1 && rawText.includes('\n')) {
+                   textSegments = rawText.split('\n').map(s => s.trim()).filter(s => s.length > 2);
+               }
+               
+               let name = '';
+               for (let seg of textSegments) {
+                   const lower = seg.toLowerCase();
+                   if (lower.includes('₹') || lower.includes('$')) continue; // skip price
+                   if (lower.includes('★') || seg.match(/^[0-9.,]+$/)) continue; // skip ratings
+                   if (lower === store.toLowerCase() || lower.includes((store+'.').toLowerCase()) || lower === 'in stock') continue; // skip generic ui text
+                   if (seg.length > 10) {
+                       name = seg;
+                       break;
+                   }
+               }
+               
+               if (!name) {
+                   name = link.getAttribute('aria-label') || 'Product';
+                   name = name.replace(/^.*?((Buy)|(Shop)|(Price))\s+/ig, ''); // Clean up aria-label spam
+               }
+               
+               let price = extractPrice(rawText) || extractPrice(link.getAttribute('aria-label'));
 
                seen.add(link.href);
                validCards.push({
