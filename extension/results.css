@@ -394,3 +394,200 @@ body {
 .product-card {
     position: relative; /* Need this for absolute heart button */
 }
+
+/* ---- Virtual Try-On ---- */
+.tryon-card h3 {
+    font-size: 16px;
+    margin-bottom: 16px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.tryon-btn {
+    width: 100%;
+    padding: 16px 20px;
+    border: none;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #E60023, #ff5a79);
+    color: white;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 6px 18px rgba(230, 0, 35, 0.28);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.tryon-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 26px rgba(230, 0, 35, 0.36);
+}
+
+.tryon-emoji {
+    font-size: 18px;
+}
+
+.tryon-note {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.4;
+}
+
+.tryon-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 20, 25, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: tryon-fade 0.25s ease;
+}
+
+@keyframes tryon-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.tryon-modal {
+    position: relative;
+    width: min(440px, 92vw);
+    max-height: 90vh;
+    overflow-y: auto;
+    background: white;
+    border-radius: 24px;
+    padding: 28px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.3);
+    text-align: center;
+    animation: tryon-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes tryon-pop {
+    from { transform: scale(0.92) translateY(10px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.tryon-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,0.05);
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.tryon-close:hover {
+    background: #ffe5e5;
+    color: var(--accent);
+}
+
+.tryon-title {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+}
+
+.tryon-sub {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin: 4px 0 20px;
+}
+
+.tryon-stage {
+    min-height: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.tryon-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+}
+
+.tryon-loading p {
+    font-size: 14px;
+    color: var(--text-muted);
+    max-width: 240px;
+    line-height: 1.5;
+}
+
+.tryon-result {
+    width: 100%;
+    display: block;
+}
+
+.tryon-error {
+    padding: 40px 20px;
+    font-size: 40px;
+}
+
+.tryon-error p {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 12px;
+    line-height: 1.5;
+}
+
+.tryon-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+    min-height: 24px;
+    flex-wrap: wrap;
+}
+
+.tryon-foot:empty {
+    display: none;
+}
+
+.tryon-badge {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: #f0f0f0;
+    padding: 6px 12px;
+    border-radius: 20px;
+}
+
+.tryon-badge.live {
+    color: var(--accent);
+    background: #fff0f2;
+}
+
+.tryon-dl {
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+    background: #111;
+    padding: 10px 18px;
+    border-radius: 12px;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+
+.tryon-dl:hover {
+    background: var(--accent);
+}

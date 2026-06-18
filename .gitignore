@@ -13,6 +13,11 @@ backend/debug_google*.html
 backend/debug_google*.png
 backend/test_google.jpg
 
+# Secrets & local runtime artifacts (try-on)
+backend/.hf_token
+backend/_debug_tryon/
+backend/*.log
+
 # OS / editor cruft
 .DS_Store
 .vscode/

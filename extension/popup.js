@@ -1,6 +1,76 @@
+// Downscale an uploaded photo so it fits comfortably in chrome.storage.local
+// and is a sensible size for the try-on model. Returns a JPEG data-URL.
+function resizeImageFile(file, maxSide = 768) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const img = new Image();
+            img.onload = () => {
+                let { width, height } = img;
+                const scale = Math.min(1, maxSide / Math.max(width, height));
+                width = Math.round(width * scale);
+                height = Math.round(height * scale);
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.9));
+            };
+            img.onerror = reject;
+            img.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+function renderMyPhoto() {
+    const body = document.getElementById('myphoto-body');
+    const input = document.getElementById('photo-input');
+
+    chrome.storage.local.get({ qlothi_person_photo: '' }, (res) => {
+        const photo = res.qlothi_person_photo;
+        if (photo) {
+            body.innerHTML = `
+                <div class="myphoto-preview">
+                    <img src="${photo}" alt="Your photo">
+                </div>
+                <div class="myphoto-actions">
+                    <button class="mp-btn" id="mp-change">Change</button>
+                    <button class="mp-btn mp-danger" id="mp-remove">Remove</button>
+                </div>`;
+            document.getElementById('mp-change').onclick = () => input.click();
+            document.getElementById('mp-remove').onclick = () => {
+                chrome.storage.local.remove('qlothi_person_photo', renderMyPhoto);
+            };
+        } else {
+            body.innerHTML = `
+                <button class="myphoto-upload" id="mp-upload">
+                    <span class="mp-plus">+</span>
+                    <span>Upload a full-body photo</span>
+                </button>`;
+            document.getElementById('mp-upload').onclick = () => input.click();
+        }
+    });
+
+    input.onchange = async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        try {
+            const dataUrl = await resizeImageFile(file);
+            chrome.storage.local.set({ qlothi_person_photo: dataUrl }, renderMyPhoto);
+        } catch (e) {
+            alert('Could not read that image. Try a different photo.');
+        }
+        input.value = ''; // allow re-selecting the same file later
+    };
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const grid = document.getElementById('wardrobe-grid');
     const emptyState = document.getElementById('empty-state');
+
+    renderMyPhoto();
 
     function renderWardrobe() {
         chrome.storage.local.get({ qlothi_wishlist: [] }, (res) => {

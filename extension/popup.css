@@ -61,10 +61,112 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100%;
+    min-height: 220px;
     text-align: center;
     padding: 40px;
     color: var(--text-muted);
+}
+
+/* ---- My Photo (virtual try-on source) ---- */
+.myphoto-card {
+    background: white;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    border: 1px solid rgba(0,0,0,0.04);
+}
+
+.myphoto-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.myphoto-head h3 {
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.myphoto-hint {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.myphoto-upload {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 24px;
+    border: 2px dashed rgba(0,0,0,0.12);
+    border-radius: 14px;
+    background: var(--bg-color);
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.myphoto-upload:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: #fff5f6;
+}
+
+.mp-plus {
+    font-size: 28px;
+    font-weight: 300;
+    line-height: 1;
+}
+
+.myphoto-preview {
+    width: 100%;
+    height: 160px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #f4f4f4;
+}
+
+.myphoto-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.myphoto-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.mp-btn {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 10px;
+    background: white;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mp-btn:hover {
+    background: #f4f4f4;
+}
+
+.mp-danger:hover {
+    background: #ffe5e5;
+    color: var(--accent);
+    border-color: #ffd0d0;
 }
 
 .empty-icon {

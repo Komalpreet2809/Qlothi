@@ -9,7 +9,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let allItems = [];
     let savedLinks = new Set();
+    let currentGarmentCrop = null;   // base64 crop of the garment, ready for try-on
+    let currentItemName = '';        // e.g. "Dress", "Top / Upper Wear"
+    let currentCaption = '';         // BLIP description, e.g. "loose grey wide-leg trousers"
     const grid = document.getElementById('results-grid');
+
+    const TRYON_ENDPOINT = 'https://komalsohal-qlothi.hf.space/tryon';
 
     // Pre-load wishlist states
     chrome.storage.local.get({ qlothi_wishlist: [] }, (result) => {
@@ -98,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const doVisualSearch = (itemName, imgUrl, bbox) => {
+        currentItemName = itemName;
         // Show loading text
         document.getElementById('item-query').textContent = "Scanning the web...";
         document.getElementById('source-image').src = imgUrl; // Temporary full image
@@ -131,7 +137,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.drawImage(img, x1, y1, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
                 
                 const croppedBase64 = canvas.toDataURL('image/jpeg', 0.9);
-                
+                currentGarmentCrop = croppedBase64; // ready for virtual try-on
+
                 // Display the full image in the sidebar per user request
                 document.getElementById('source-image').src = response.base64_image;
 
@@ -144,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ base64_image: croppedBase64 })
                 }).then(r => r.json()).catch(() => ({ caption: "" })).then(capRes => {
                     const captionStr = capRes.caption || "";
+                    currentCaption = captionStr; // richer garment prompt for try-on
                     if (captionStr) {
                          document.getElementById('item-query').textContent = captionStr;
                     } else {
@@ -171,6 +179,76 @@ document.addEventListener('DOMContentLoaded', () => {
             img.src = response.base64_image;
         });
     };
+
+    // ---- Virtual Try-On ----
+    const runTryOn = () => {
+        if (!currentGarmentCrop) {
+            alert('Hang on — still preparing the garment. Try again in a second.');
+            return;
+        }
+        chrome.storage.local.get({ qlothi_person_photo: '' }, (res) => {
+            if (!res.qlothi_person_photo) {
+                alert('Add your photo first: click the Qlothi icon in the toolbar → "My Photo" → upload a full-body picture.');
+                return;
+            }
+            openTryOnModal(res.qlothi_person_photo);
+        });
+    };
+
+    const openTryOnModal = (personPhoto) => {
+        const existing = document.querySelector('.tryon-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'tryon-overlay';
+        overlay.innerHTML = `
+            <div class="tryon-modal">
+                <button class="tryon-close" aria-label="Close">✕</button>
+                <h2 class="tryon-title">Virtual Try-On</h2>
+                <p class="tryon-sub">${currentItemName}</p>
+                <div class="tryon-stage">
+                    <div class="tryon-loading">
+                        <div class="spinner"></div>
+                        <p id="tryon-status">Dressing you up… this can take up to a minute.</p>
+                    </div>
+                </div>
+                <div class="tryon-foot" id="tryon-foot"></div>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        const close = () => overlay.remove();
+        overlay.querySelector('.tryon-close').onclick = close;
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+        fetch(TRYON_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                person_image: personPhoto,
+                garment_image: currentGarmentCrop,
+                category: currentItemName,
+                description: currentCaption
+            })
+        })
+        .then(r => r.json())
+        .catch(() => ({ status: 'error', message: 'Could not reach the Qlothi backend. Make sure it is running.' }))
+        .then(data => {
+            const stage = overlay.querySelector('.tryon-stage');
+            const foot = overlay.querySelector('#tryon-foot');
+            if (data.status === 'success' && data.result_image) {
+                stage.innerHTML = `<img class="tryon-result" src="${data.result_image}" alt="You wearing ${currentItemName}">`;
+                const badge = data.engine === 'overlay'
+                    ? `<span class="tryon-badge">Quick preview · live try-on was busy</span>`
+                    : `<span class="tryon-badge live">✨ AI try-on</span>`;
+                foot.innerHTML = `${badge}<a class="tryon-dl" href="${data.result_image}" download="qlothi-tryon.jpg">⬇ Save image</a>`;
+            } else {
+                stage.innerHTML = `<div class="tryon-error">😕<p>${data.message || 'Try-on failed. Please try again.'}</p></div>`;
+            }
+        });
+    };
+
+    const tryonBtn = document.getElementById('tryon-btn');
+    if (tryonBtn) tryonBtn.addEventListener('click', runTryOn);
 
     // Search triggering is now handled at the top inside the wishlist pre-load callback
 });

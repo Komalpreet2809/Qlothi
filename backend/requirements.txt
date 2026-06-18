@@ -6,4 +6,7 @@ requests-toolbelt
 beautifulsoup4
 opencv-python-headless
 pillow
-transformers
+transformers<5
+torch
+torchvision
+gradio_client

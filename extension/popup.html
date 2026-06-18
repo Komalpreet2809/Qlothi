@@ -13,12 +13,23 @@
     </header>
 
     <main class="container">
+        <section id="myphoto-card" class="myphoto-card">
+            <div class="myphoto-head">
+                <h3>👤 My Photo</h3>
+                <span class="myphoto-hint">For virtual try-on</span>
+            </div>
+            <div id="myphoto-body" class="myphoto-body">
+                <!-- Uploader or preview injected by popup.js -->
+            </div>
+            <input type="file" id="photo-input" accept="image/*" hidden>
+        </section>
+
         <div id="empty-state" class="empty-state" style="display: none;">
             <div class="empty-icon">👗</div>
             <h3>Your wardrobe is empty</h3>
             <p>Go to Pinterest and click on any fashion item to start saving outfits you love!</p>
         </div>
-        
+
         <div id="wardrobe-grid" class="wardrobe-grid">
             <!-- Items injected by popup.js -->
         </div>
