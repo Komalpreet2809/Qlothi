@@ -373,7 +373,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === "analyzeOutfit") {
-    fetch('https://komalsohal-qlothi.hf.space/analyze', {
+    fetch('http://localhost:8009/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ base64_image: request.base64_image })

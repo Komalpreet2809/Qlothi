@@ -15,6 +15,9 @@ backend/test_google.jpg
 
 # Secrets & local runtime artifacts (try-on)
 backend/.hf_token
+backend/.gemini_key
+backend/.runpod_url
+fashn-vton-1.5/
 backend/_debug_tryon/
 backend/*.log
 

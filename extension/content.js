@@ -1,6 +1,38 @@
 // Qlothi Content Script
 
-console.log("Qlothi content script loaded.");
+console.log("Qlothi content script loaded. [build: modal-action-footer v3]");
+
+// Backend base URL. The full-look try-on is fetched directly from here (not via
+// the background worker) because MV3 tears the worker down before a ~80s chained
+// request finishes ("message port closed"). The backend sends CORS * and
+// http://localhost is mixed-content-exempt, so a direct fetch is allowed.
+const QLOTHI_BACKEND = 'http://localhost:8009';
+const QLOTHI_CLOSE_ICON = `
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M7 7l10 10M17 7 7 17" />
+  </svg>`;
+
+function qlothiNotify(message, tone = 'error') {
+  const existing = document.querySelector('.qlothi-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.className = `qlothi-toast qlothi-toast--${tone}`;
+  toast.setAttribute('role', tone === 'error' ? 'alert' : 'status');
+
+  const text = document.createElement('span');
+  text.textContent = message;
+  const dismiss = document.createElement('button');
+  dismiss.type = 'button';
+  dismiss.setAttribute('aria-label', 'Dismiss message');
+  dismiss.innerHTML = QLOTHI_CLOSE_ICON;
+  dismiss.addEventListener('click', () => toast.remove());
+
+  toast.append(text, dismiss);
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('visible'));
+  window.setTimeout(() => toast.remove(), 6500);
+}
 
 function injectButton() {
   // Look for the main closeup container
@@ -74,7 +106,7 @@ function injectButton() {
 function analyzeImage(imageUrl) {
   // Guard: if extension was reloaded, chrome.runtime becomes undefined
   if (!chrome.runtime || !chrome.runtime.sendMessage) {
-    alert("Qlothi extension was reloaded. Please refresh this Pinterest page and try again.");
+    qlothiNotify('Qlothi was reloaded. Refresh this Pinterest page and try again.');
     return;
   }
 
@@ -96,14 +128,14 @@ function analyzeImage(imageUrl) {
     timeoutPromise
   ]).then((response) => {
     if (chrome.runtime.lastError) {
-      alert("Extension Error: " + chrome.runtime.lastError.message);
+      qlothiNotify('Extension error: ' + chrome.runtime.lastError.message);
       if (btn) { btn.innerHTML = oldText; btn.style.pointerEvents = 'auto'; }
       return;
     }
 
     if (!response || !response.success) {
       console.error("Failed to fetch image data via background:", response ? response.error : 'Unknown error');
-      alert("Error: Could not read image data. " + (response ? response.error : ''));
+      qlothiNotify('Could not read the Pin image. ' + (response ? response.error : ''));
       if (btn) { btn.innerHTML = oldText; btn.style.pointerEvents = 'auto'; }
       return;
     }
@@ -119,7 +151,7 @@ function analyzeImage(imageUrl) {
     if (!res) return; // Handled by first block if aborted
     
     if (chrome.runtime.lastError) {
-      alert("Extension Error talking to backend proxy: " + chrome.runtime.lastError.message);
+      qlothiNotify('Could not contact the extension service: ' + chrome.runtime.lastError.message);
       if (btn) { btn.innerHTML = oldText; btn.style.pointerEvents = 'auto'; }
       return;
     }
@@ -132,15 +164,15 @@ function analyzeImage(imageUrl) {
       if (data.status === 'success' && data.items && data.items.length > 0) {
         createModal(data.items, imageUrl);
       } else {
-        alert("No garments detected by Qlothi AI.");
+        qlothiNotify('No garments were detected in this Pin.', 'info');
       }
     } else {
       console.error("Error connecting to backend proxy:", res.error);
-      alert("Error connecting to Qlothi Backend. Make sure Python server is running.");
+      qlothiNotify('Qlothi is offline. Start the local backend, then try again.');
     }
   }).catch(err => {
     console.error("Critical error in analyze promise chain:", err);
-    alert("Critical failure: " + err.message);
+    qlothiNotify('Qlothi could not complete the request: ' + err.message);
     if (btn) { btn.innerHTML = oldText; btn.style.pointerEvents = 'auto'; }
   });
 }
@@ -182,7 +214,9 @@ function openShopModal(itemName, mainModal) {
   // Close button
   const closeBtn = document.createElement('button');
   closeBtn.className = 'qlothi-shop-close';
-  closeBtn.innerHTML = '✕';
+  closeBtn.type = 'button';
+  closeBtn.setAttribute('aria-label', 'Close shopping options');
+  closeBtn.innerHTML = QLOTHI_CLOSE_ICON;
   closeBtn.onclick = () => {
     shopModal.classList.remove('visible');
     if (imgWrapper) imgWrapper.classList.remove('blurred');
@@ -198,9 +232,9 @@ function openShopModal(itemName, mainModal) {
   results.className = 'qlothi-shop-results';
 
   const retailers = [
-    { name: 'Qlothi Visual Results', icon: '✨', url: chrome.runtime.getURL(`results.html?item=${encodeURIComponent(itemName)}&img=${encodeURIComponent(document.querySelector('.qlothi-modal-img').src)}`) },
-    { name: 'Google Shopping', icon: '🔍', url: `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(itemName)}` },
-    { name: 'Pinterest Search', icon: '📌', url: `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(itemName)}` }
+    { name: 'Qlothi visual results', shortLabel: 'Q', source: 'qlothi', url: chrome.runtime.getURL(`results.html?item=${encodeURIComponent(itemName)}&img=${encodeURIComponent(document.querySelector('.qlothi-modal-img').src)}`) },
+    { name: 'Google Shopping', shortLabel: 'G', source: 'google', url: `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(itemName)}` },
+    { name: 'Pinterest search', shortLabel: 'P', source: 'pinterest', url: `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(itemName)}` }
   ];
 
   retailers.forEach(retailer => {
@@ -210,9 +244,9 @@ function openShopModal(itemName, mainModal) {
     link.target = '_blank';
     
     link.innerHTML = `
-      <div class="qlothi-shop-item-icon">${retailer.icon}</div>
+      <div class="qlothi-shop-item-icon qlothi-shop-item-icon--${retailer.source}" aria-hidden="true">${retailer.shortLabel}</div>
       <div class="qlothi-shop-item-text">${retailer.name}</div>
-      <div class="qlothi-shop-arrow">→</div>
+      <div class="qlothi-shop-arrow" aria-hidden="true"></div>
     `;
     
     results.appendChild(link);
@@ -253,7 +287,9 @@ function createModal(items, imageUrl) {
   // Create a close button
   const closeBtn = document.createElement('button');
   closeBtn.className = 'qlothi-modal-close';
-  closeBtn.innerHTML = '✕';
+  closeBtn.type = 'button';
+  closeBtn.setAttribute('aria-label', 'Close outfit analysis');
+  closeBtn.innerHTML = QLOTHI_CLOSE_ICON;
   closeBtn.addEventListener('click', () => {
     overlay.remove();
     currentModal = null;
@@ -427,9 +463,150 @@ function createModal(items, imageUrl) {
     imgWrapper.appendChild(svg);
   };
 
+  // Keep the primary action inside the modal so it remains visually attached to
+  // the preview without covering the image or straddling the card boundary.
+  const actions = document.createElement('div');
+  actions.className = 'qlothi-modal-actions';
+
+  const lookBtn = document.createElement('button');
+  lookBtn.className = 'qlothi-look-btn';
+  lookBtn.type = 'button';
+  lookBtn.textContent = 'Try full look';
+  lookBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    tryWholeLook(items, imageUrl);
+  });
+  actions.appendChild(lookBtn);
+  modal.appendChild(actions);
+
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
   currentModal = overlay;
+}
+
+// ---- Try the whole look (chained try-on of every garment) ----
+
+function qlothiCategoryOf(name) {
+  const n = (name || '').toLowerCase();
+  if (/dress/.test(n)) return 'dress';
+  if (/top|upper|shirt|tee|jacket|blouse/.test(n)) return 'upper';
+  if (/pant|trouser|jean|skirt|lower|short/.test(n)) return 'lower';
+  return null; // accessories (bag, shoes, hat...) can't be tried on
+}
+
+function qlothiCrop(baseImg, bbox) {
+  const x1 = bbox[0] * baseImg.width;
+  const y1 = bbox[1] * baseImg.height;
+  const w = Math.max((bbox[2] - bbox[0]) * baseImg.width, 10);
+  const h = Math.max((bbox[3] - bbox[1]) * baseImg.height, 10);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(baseImg, x1, y1, w, h, 0, 0, w, h);
+  return c.toDataURL('image/jpeg', 0.9);
+}
+
+function tryWholeLook(items, imageUrl) {
+  if (!chrome.runtime || !chrome.runtime.sendMessage) {
+    qlothiNotify('Qlothi was reloaded. Refresh this Pinterest page and try again.');
+    return;
+  }
+
+  // Pick the largest garment per category (top / bottom / dress).
+  const best = {};
+  items.forEach(it => {
+    const cat = qlothiCategoryOf(it.class_name);
+    if (!cat) return;
+    if (!best[cat] || (it.area_pct || 0) > (best[cat].area_pct || 0)) best[cat] = it;
+  });
+  const chosen = Object.values(best);
+  if (chosen.length === 0) {
+    qlothiNotify('This look only contains accessories, so it cannot be tried on.', 'info');
+    return;
+  }
+
+  chrome.storage.local.get({ qlothi_person_photo: '' }, (res) => {
+    if (!res.qlothi_person_photo) {
+      qlothiNotify('Add a full-body photo under My photo in the Qlothi toolbar menu.', 'info');
+      return;
+    }
+    const overlay = qlothiLookModal(chosen.length);
+
+    // Pull the pin image as base64 (via background) so we can crop without CORS taint.
+    chrome.runtime.sendMessage({ action: 'downloadImage', url: imageUrl }, (resp) => {
+      if (!resp || !resp.success) { qlothiLookError(overlay, 'Could not read the pin image.'); return; }
+      const baseImg = new Image();
+      baseImg.onload = () => {
+        const garments = chosen.map(it => ({
+          image: qlothiCrop(baseImg, it.bbox_normalized),
+          category: it.class_name,
+        }));
+        // Direct fetch (NOT via background) so the ~80s request isn't killed
+        // when MV3 tears down the service worker.
+        console.log('[Qlothi] Try Full Look -> POST', QLOTHI_BACKEND + '/tryon_look', '|', garments.length, 'garments');
+        fetch(QLOTHI_BACKEND + '/tryon_look', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ person_image: res.qlothi_person_photo, garments })
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data && data.status === 'success' && data.result_image) {
+              qlothiLookSuccess(overlay, data.result_image, data.applied || []);
+            } else {
+              qlothiLookError(overlay, (data && data.message) || 'Try-on failed. Please try again.');
+            }
+          })
+          .catch(err => qlothiLookError(overlay, 'Could not reach the Qlothi backend. ' + err.message));
+      };
+      baseImg.onerror = () => qlothiLookError(overlay, 'Image load error.');
+      baseImg.src = resp.base64_image;
+    });
+  });
+}
+
+function qlothiLookModal(numItems) {
+  if (!document.getElementById('qlothi-look-style')) {
+    const st = document.createElement('style');
+    st.id = 'qlothi-look-style';
+    st.textContent = '@keyframes qlothi-spin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(st);
+  }
+  const ov = document.createElement('div');
+  ov.className = 'qlothi-look-overlay';
+  ov.innerHTML =
+    '<div class="qlothi-look-card">' +
+      '<button class="qlothi-look-close" type="button" aria-label="Close full-look preview">' + QLOTHI_CLOSE_ICON + '</button>' +
+      '<h2>Your full look</h2>' +
+      '<p class="qlothi-look-sub">' +
+        'Applying ' + numItems + ' item' + (numItems > 1 ? 's' : '') + '. This may take a minute.</p>' +
+      '<div class="qlothi-look-stage">' +
+        '<div class="qlothi-look-spinner" aria-label="Creating preview"></div>' +
+      '</div>' +
+    '</div>';
+  const close = () => ov.remove();
+  ov.querySelector('.qlothi-look-close').onclick = close;
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  document.body.appendChild(ov);
+  return ov;
+}
+
+function qlothiLookSuccess(ov, img, applied) {
+  const sub = ov.querySelector('.qlothi-look-sub');
+  if (sub) sub.textContent = applied.length ? ('Applied: ' + applied.join(' + ')) : 'Done';
+  ov.querySelector('.qlothi-look-stage').innerHTML =
+    '<img class="qlothi-look-result" src="' + img + '" alt="Virtual try-on result">';
+  const dl = document.createElement('a');
+  dl.href = img; dl.download = 'qlothi-look.jpg'; dl.textContent = 'Save image';
+  dl.className = 'qlothi-look-save';
+  ov.querySelector('.qlothi-look-card').appendChild(dl);
+}
+
+function qlothiLookError(ov, msg) {
+  const sub = ov.querySelector('.qlothi-look-sub');
+  if (sub) sub.textContent = '';
+  ov.querySelector('.qlothi-look-stage').innerHTML =
+    '<div class="qlothi-look-error"><span aria-hidden="true">!</span><p>' + msg + '</p></div>';
 }
 
 // Observe DOM changes to detect when a Pin is opened

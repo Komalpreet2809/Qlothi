@@ -8,15 +8,18 @@
 </head>
 <body>
     <header class="navbar">
-        <div class="logo">Qlothi<span>.</span></div>
-        <div class="header-text">Virtual Wardrobe</div>
+        <div class="brand">
+            <span class="brand-mark" aria-hidden="true">Q</span>
+            <span class="logo">Qlothi</span>
+        </div>
+        <div class="header-text">Wardrobe</div>
     </header>
 
     <main class="container">
         <section id="myphoto-card" class="myphoto-card">
             <div class="myphoto-head">
-                <h3>👤 My Photo</h3>
-                <span class="myphoto-hint">For virtual try-on</span>
+                <h3>My photo</h3>
+                <span class="myphoto-hint">Virtual try-on</span>
             </div>
             <div id="myphoto-body" class="myphoto-body">
                 <!-- Uploader or preview injected by popup.js -->
@@ -24,10 +27,15 @@
             <input type="file" id="photo-input" accept="image/*" hidden>
         </section>
 
-        <div id="empty-state" class="empty-state" style="display: none;">
-            <div class="empty-icon">👗</div>
-            <h3>Your wardrobe is empty</h3>
-            <p>Go to Pinterest and click on any fashion item to start saving outfits you love!</p>
+        <div id="empty-state" class="empty-state" hidden>
+            <div class="empty-icon" aria-hidden="true">
+                <svg viewBox="0 0 48 48" role="presentation">
+                    <path d="M24 11a4 4 0 1 1 4 4c0 3-4 3-4 7" />
+                    <path d="m8 35 14-12a3 3 0 0 1 4 0l14 12a2 2 0 0 1-1.3 3.5H9.3A2 2 0 0 1 8 35Z" />
+                </svg>
+            </div>
+            <h3>Save your first find</h3>
+            <p>Open a fashion Pin, choose Shop, then save products you want to revisit.</p>
         </div>
 
         <div id="wardrobe-grid" class="wardrobe-grid">

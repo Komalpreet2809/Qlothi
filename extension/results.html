@@ -7,31 +7,32 @@
     <link rel="stylesheet" href="results.css">
 </head>
 <body>
-    <div class="glass-bg"></div>
-    
     <header class="navbar">
-        <div class="logo">Qlothi<span>.</span></div>
+        <div class="brand">
+            <span class="brand-mark" aria-hidden="true">Q</span>
+            <span class="logo">Qlothi</span>
+        </div>
         <div class="search-info">
-            <span id="searching-for">Searching for: </span>
+            <span id="searching-for">Results for</span>
             <strong id="item-query">...</strong>
         </div>
     </header>
 
     <main class="container">
         <aside class="sidebar">
-            <div class="source-img-card glass">
-                <h3>Your Inspiration</h3>
+            <div class="source-img-card panel">
+                <h2>Your inspiration</h2>
                 <div class="img-frame">
                     <img id="source-image" src="" alt="Source outfit">
                 </div>
             </div>
 
-            <div class="tryon-card glass">
-                <h3>Virtual Try-On</h3>
+            <div class="tryon-card panel">
+                <h2>Virtual try-on</h2>
                 <button id="tryon-btn" class="tryon-btn">
-                    <span class="tryon-emoji">👗</span> Try it on me
+                    Try it on me
                 </button>
-                <p class="tryon-note" id="tryon-note">Uses the photo saved in your Qlothi popup.</p>
+                <p class="tryon-note" id="tryon-note">Uses the photo saved in your Qlothi wardrobe.</p>
             </div>
         </aside>
 
@@ -39,14 +40,12 @@
             <!-- Items injected by results.js -->
             <div class="loading-state">
                 <div class="spinner"></div>
-                <p>Curating the best matches for you...</p>
+                <p>Finding visually similar products</p>
             </div>
         </section>
     </main>
 
-    <footer style="margin-top: auto; text-align: center; padding: 40px 0 20px 0; color: #888; font-size: 14px; font-weight: 500; letter-spacing: 0.5px; width: 100%;">
-        Made with ❤️ by <strong>Komal</strong>
-    </footer>
+    <footer>Qlothi for Pinterest</footer>
 
     <script src="results.js"></script>
 </body>

@@ -151,15 +151,44 @@ def _extract_items(class_mask: np.ndarray, class_id: int, width: int, height: in
 # it's queued / over-quota / down, degrade to a Segformer-guided CPU overlay so
 # the feature never fully dies. Both paths are $0.
 
-# Public ZeroGPU Space that exposes an IDM-VTON `/tryon` endpoint. Overridable
-# via env so we can swap to another mirror if this one goes offline.
-VTON_SPACE = os.environ.get("QLOTHI_VTON_SPACE", "yisol/IDM-VTON")
+# Public ZeroGPU Space running FASHN VTON v1.5 (open-source, Apache-2.0). It is
+# maskless + pixel-space -> sharper detail and better colour fidelity than
+# IDM-VTON, and it handles tops/bottoms/one-pieces natively (no custom mask).
+# Overridable via env; `merve/fashn-vton-1.5` is an equivalent mirror.
+VTON_SPACE = os.environ.get("QLOTHI_VTON_SPACE", "fashn-ai/fashn-vton-1.5")
 # A *free* (non-PRO) HF token grants a small daily ZeroGPU quota for calls to
 # public Spaces. Optional — anonymous calls still work but are throttled harder.
 HF_TOKEN = os.environ.get("HF_TOKEN") or None
 # Give up on the live Space after this long and fall back to the overlay.
-# Real inference is ~60-75s; allow headroom for queue before falling back.
 VTON_SPACE_TIMEOUT_S = 150
+# Set QLOTHI_SSL_VERIFY=0 when on a network that does SSL inspection (corporate
+# proxy / VPN / AV), which otherwise breaks gradio_client with a self-signed-cert
+# error. Defaults to verifying (safe for the HF deployment).
+VTON_SSL_VERIFY = os.environ.get("QLOTHI_SSL_VERIFY", "1") != "0"
+
+# ---- PRIMARY engine: Google Gemini 2.5 Flash Image ("Nano Banana") ----
+# Best free quality: hosted (no local GPU), 500 images/day free tier, and a true
+# generative model — so it preserves each garment's real colour / neckline /
+# length far better than warping VTON, and can dress a whole outfit in ONE call.
+# Needs a free key from https://aistudio.google.com (loaded from backend/.gemini_key).
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or None
+GEMINI_IMAGE_MODEL = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
+try:
+    from google import genai as _genai
+    _HAS_GENAI = True
+except Exception:
+    _HAS_GENAI = False
+
+# ---- Self-hosted IDM-VTON on RunPod (PRIMARY engine) ----
+# Our own RunPod GPU pod runs the official IDM-VTON gradio app; we call it with
+# gradio_client. No per-image cost — pay only for GPU time while the pod is up.
+# Set RUNPOD_GRADIO_URL to the pod's public URL, e.g.
+#   https://<pod-id>-7860.proxy.runpod.net   (loaded from backend/.runpod_url)
+RUNPOD_GRADIO_URL = os.environ.get("RUNPOD_GRADIO_URL") or None
+RUNPOD_TIMEOUT_S = int(os.environ.get("RUNPOD_TIMEOUT_S", "300"))  # allow cold start
+
+# Our internal category -> FASHN's category enum.
+_FASHN_CATEGORY = {"upper_body": "tops", "lower_body": "bottoms", "dresses": "one-pieces"}
 
 # Map the garment label coming from the extension to an IDM-VTON category and to
 # the Segformer class ids used to locate that region on the person (overlay).
@@ -219,16 +248,16 @@ _VTON_MASK_CLASSES = {
 }
 
 
-# Lower-body / dress agnostic-mask classes. The public IDM-VTON Space hardcodes
-# its auto-mask to the UPPER body, so for these categories we must supply our own
-# mask (is_checked=False) covering the garment area + legs.
+# Save what we send to the Space, for debugging bad results.
+_DEBUG_DIR = os.path.join(os.path.dirname(__file__), "_debug_tryon")
+
+
+# IDM-VTON auto-masks the TORSO only, so for skirts/pants/dresses we supply our
+# own mask (is_checked=False) covering the garment area + legs.
 _LOWER_MASK_CLASSES = {
     "lower_body": (5, 6, 12, 13),       # skirt, pants, both legs
     "dresses": (4, 5, 6, 7, 12, 13),    # torso + legs
 }
-
-# Save what we send to the Space, for debugging bad results.
-_DEBUG_DIR = os.path.join(os.path.dirname(__file__), "_debug_tryon")
 
 
 def _save_temp_image(img: Image.Image, suffix: str = ".png") -> str:
@@ -266,27 +295,19 @@ def _build_lower_mask(person_img: Image.Image, vton_category: str):
     return Image.fromarray(mask).convert("RGB")
 
 
-def _vton_via_space(person_b64: str, garment_b64: str, garment_des: str, vton_category: str) -> str:
-    """Call the public IDM-VTON Space. The Space hardcodes its auto-mask to the
-    TORSO, so:
-      - upper_body  -> is_checked=True  (use the Space's clean auto-mask)
-      - lower/dress -> is_checked=False (supply our own lower-body mask, else the
-                       skirt/pants would be painted onto the torso as a top)
-    Returns a data-URL."""
+def _runpod_idmvton(person_b64: str, garment_b64: str, vton_category: str) -> str:
+    """PRIMARY engine: our self-hosted IDM-VTON gradio app on RunPod (called via
+    gradio_client). Auto-mask for tops; custom lower-body mask for bottoms/dresses
+    (IDM-VTON auto-masks the torso only). Returns a data-URL."""
     if not _HAS_GRADIO:
         raise RuntimeError("gradio_client not installed")
+    if not RUNPOD_GRADIO_URL:
+        raise RuntimeError("RUNPOD_GRADIO_URL not configured")
 
     person_path = _write_temp_jpg(person_b64)
     garment_path = _write_temp_jpg(garment_b64)
     mask_path = None
     try:
-        os.makedirs(_DEBUG_DIR, exist_ok=True)
-        try:
-            _b64_to_pil(person_b64).save(os.path.join(_DEBUG_DIR, "person_in.jpg"))
-            _b64_to_pil(garment_b64).save(os.path.join(_DEBUG_DIR, "garment_raw.jpg"))
-        except Exception:
-            pass
-
         if vton_category == "upper_body":
             editor = {"background": handle_file(person_path), "layers": [], "composite": None}
             is_checked, is_checked_crop = True, True
@@ -294,35 +315,28 @@ def _vton_via_space(person_b64: str, garment_b64: str, garment_des: str, vton_ca
             mask_img = _build_lower_mask(_b64_to_pil(person_b64), vton_category)
             if mask_img is not None:
                 mask_path = _save_temp_image(mask_img, ".png")
-                try:
-                    mask_img.save(os.path.join(_DEBUG_DIR, "mask_used.png"))
-                except Exception:
-                    pass
                 editor = {
                     "background": handle_file(person_path),
                     "layers": [handle_file(mask_path)],
                     "composite": None,
                 }
                 is_checked, is_checked_crop = False, False
-                print(f"[tryon] using lower-body mask ({vton_category}).")
+                print(f"[tryon] RunPod IDM-VTON lower-body mask ({vton_category}).")
             else:
-                # Couldn't segment the lower body -> last resort: let it auto-mask.
                 editor = {"background": handle_file(person_path), "layers": [], "composite": None}
                 is_checked, is_checked_crop = True, True
-                print("[tryon] lower-body mask not found; using auto-mask.")
 
-        client = Client(VTON_SPACE, token=HF_TOKEN)
+        client = Client(RUNPOD_GRADIO_URL, ssl_verify=VTON_SSL_VERIFY)
         result = client.predict(
             dict=editor,
             garm_img=handle_file(garment_path),
-            garment_des=garment_des or "a fashion garment",
+            garment_des="a fashion garment",
             is_checked=is_checked,
             is_checked_crop=is_checked_crop,
             denoise_steps=30,
             seed=42,
             api_name="/tryon",
         )
-        # IDM-VTON returns (output_image_path, masked_image_path).
         output_path = result[0] if isinstance(result, (list, tuple)) else result
         try:
             os.makedirs(_DEBUG_DIR, exist_ok=True)
@@ -338,6 +352,98 @@ def _vton_via_space(person_b64: str, garment_b64: str, garment_des: str, vton_ca
                     os.remove(p)
                 except OSError:
                     pass
+
+
+def _gemini_tryon(person_b64: str, garments: list) -> str:
+    """PRIMARY engine. Dress the person in ALL given garments in a single Gemini
+    image-generation call. garments: [{"image": b64/data-URL, "category": str}, ...].
+    Returns a data-URL. Raises if Gemini isn't configured or returns no image."""
+    if not _HAS_GENAI or not GEMINI_API_KEY:
+        raise RuntimeError("Gemini not configured (need google-genai + GEMINI_API_KEY)")
+
+    client = _genai.Client(api_key=GEMINI_API_KEY)
+    labels = ", ".join((g.get("category") or "garment") for g in garments) or "outfit"
+    prompt = (
+        "Virtual try-on task. The FIRST image is a PERSON. The remaining image(s) are "
+        f"CLOTHING items ({labels}). Generate ONE photorealistic, full-body image of the "
+        "SAME person wearing ALL of these clothing items together. Keep the person's face, "
+        "hairstyle, body shape, skin tone, pose and the background EXACTLY the same — change "
+        "only their clothing. Reproduce each garment's exact colour, print/pattern, neckline, "
+        "sleeve and hem length, and fit as accurately as possible. Photorealistic, natural lighting."
+    )
+    contents = [prompt, _b64_to_pil(person_b64)]
+    for g in garments:
+        contents.append(_b64_to_pil(g["image"]))
+
+    resp = client.models.generate_content(model=GEMINI_IMAGE_MODEL, contents=contents)
+    for cand in (getattr(resp, "candidates", None) or []):
+        content = getattr(cand, "content", None)
+        for part in (getattr(content, "parts", None) or []):
+            inline = getattr(part, "inline_data", None)
+            if inline and getattr(inline, "data", None):
+                raw = inline.data
+                raw = base64.b64decode(raw) if isinstance(raw, str) else raw
+                try:
+                    os.makedirs(_DEBUG_DIR, exist_ok=True)
+                    with open(os.path.join(_DEBUG_DIR, "result_out.jpg"), "wb") as f:
+                        f.write(raw)
+                except Exception:
+                    pass
+                return "data:image/png;base64," + base64.b64encode(raw).decode()
+    raise RuntimeError("Gemini returned no image (blocked or text-only response)")
+
+
+def _vton_via_space(person_b64: str, garment_b64: str, garment_des: str, vton_category: str) -> str:
+    """Call the FASHN VTON v1.5 Space (maskless). Returns a data-URL.
+    `garment_des` is unused by FASHN (no text prompt) but kept for signature
+    stability with the chained / overlay callers."""
+    if not _HAS_GRADIO:
+        raise RuntimeError("gradio_client not installed")
+
+    person_path = _write_temp_jpg(person_b64)
+    garment_path = _write_temp_jpg(garment_b64)
+    try:
+        os.makedirs(_DEBUG_DIR, exist_ok=True)
+        try:
+            _b64_to_pil(person_b64).save(os.path.join(_DEBUG_DIR, "person_in.jpg"))
+            _b64_to_pil(garment_b64).save(os.path.join(_DEBUG_DIR, "garment_raw.jpg"))
+        except Exception:
+            pass
+
+        category = _FASHN_CATEGORY.get(vton_category, "tops")
+        print(f"[tryon] FASHN VTON v1.5 -> category={category}")
+        client = Client(VTON_SPACE, token=HF_TOKEN, ssl_verify=VTON_SSL_VERIFY)
+        result = client.predict(
+            person_image=handle_file(person_path),
+            garment_image=handle_file(garment_path),
+            category=category,
+            garment_photo_type="model",   # Pinterest crops show the garment worn
+            num_timesteps=50,
+            guidance_scale=1.5,
+            seed=42,
+            segmentation_free=True,       # maskless
+            api_name="/try_on",
+        )
+        # Image output: gradio_client returns a local filepath (str) or a
+        # FileData dict with "path".
+        if isinstance(result, dict):
+            output_path = result.get("path") or result.get("url")
+        elif isinstance(result, (list, tuple)):
+            output_path = result[0]
+        else:
+            output_path = result
+        try:
+            Image.open(output_path).convert("RGB").save(os.path.join(_DEBUG_DIR, "result_out.jpg"))
+        except Exception:
+            pass
+        with open(output_path, "rb") as f:
+            return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
+    finally:
+        for p in (person_path, garment_path):
+            try:
+                os.remove(p)
+            except OSError:
+                pass
 
 
 def _vton_overlay(person_b64: str, garment_b64: str, vton_category: str) -> str:
@@ -393,7 +499,36 @@ async def try_on(request: TryOnRequest):
     garment_des = request.description or request.category or "a fashion garment"
     print(f"[tryon] category={request.category!r} -> {vton_category}; des={garment_des!r}")
 
-    # 1. Free GPU Space first (photorealistic).
+    # 0a. Self-hosted IDM-VTON on RunPod (PRIMARY — our own GPU, no per-image cost).
+    if RUNPOD_GRADIO_URL:
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(
+                    _runpod_idmvton, request.person_image, request.garment_image, vton_category
+                ),
+                timeout=RUNPOD_TIMEOUT_S + 10,
+            )
+            print("[tryon] served by RunPod IDM-VTON.")
+            return {"status": "success", "engine": "runpod-idm-vton", "result_image": result}
+        except Exception as e:
+            print(f"[tryon] RunPod unavailable ({type(e).__name__}: {e}); trying next engine.")
+
+    # 0b. Gemini (Nano Banana) — best quality, one fast generative call.
+    if GEMINI_API_KEY:
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(
+                    _gemini_tryon, request.person_image,
+                    [{"image": request.garment_image, "category": request.category or "garment"}],
+                ),
+                timeout=120,
+            )
+            print("[tryon] served by Gemini.")
+            return {"status": "success", "engine": "gemini", "result_image": result}
+        except Exception as e:
+            print(f"[tryon] Gemini failed ({type(e).__name__}: {e}); trying Space.")
+
+    # 1. Free GPU Space (FASHN) fallback.
     try:
         result = await asyncio.wait_for(
             asyncio.to_thread(
@@ -402,8 +537,8 @@ async def try_on(request: TryOnRequest):
             ),
             timeout=VTON_SPACE_TIMEOUT_S,
         )
-        print("[tryon] served by live IDM-VTON Space.")
-        return {"status": "success", "engine": "idm-vton", "result_image": result}
+        print("[tryon] served by live Space.")
+        return {"status": "success", "engine": "fashn", "result_image": result}
     except Exception as e:
         print(f"[tryon] live Space unavailable ({type(e).__name__}: {e}); using overlay.")
 
@@ -421,6 +556,105 @@ async def try_on(request: TryOnRequest):
     except Exception as e:
         traceback.print_exc()
         return {"status": "error", "message": f"Try-on failed: {e}", "result_image": ""}
+
+
+class TryOnLookRequest(BaseModel):
+    person_image: str       # the user's body photo
+    garments: list = []     # [{"image", "category", "description"}, ...]
+
+
+# Apply upper body first, then dress, then lower — so passes don't fight over
+# overlapping regions.
+_LOOK_ORDER = {"upper_body": 0, "dresses": 1, "lower_body": 2}
+
+
+@app.post("/tryon_look")
+async def try_on_look(request: TryOnLookRequest):
+    """Apply a whole outfit by CHAINING IDM-VTON passes: each garment is tried on
+    the result of the previous pass. One pass per garment (~35-40s + GPU quota
+    each)."""
+    # Normalise + keep one garment per category, ordered top -> dress -> bottom.
+    garments, seen = [], set()
+    for g in sorted(request.garments, key=lambda x: _LOOK_ORDER.get(
+            _normalize_category(x.get("category", "")), 3)):
+        cat = _normalize_category(g.get("category", ""))
+        if cat in seen or not g.get("image"):
+            continue
+        seen.add(cat)
+        garments.append({
+            "image": g["image"],
+            "category": cat,
+            "description": g.get("description") or g.get("category") or "a fashion garment",
+        })
+
+    if not garments:
+        return {"status": "error", "message": "No try-on-able garments in this look.", "result_image": ""}
+
+    print(f"[tryon_look] {len(garments)} garments: {[g['category'] for g in garments]}")
+
+    # 0a. RunPod IDM-VTON (PRIMARY): chain one pass per garment on our own GPU.
+    if RUNPOD_GRADIO_URL:
+        try:
+            current = request.person_image
+            for g in garments:
+                current = await asyncio.wait_for(
+                    asyncio.to_thread(_runpod_idmvton, current, g["image"], g["category"]),
+                    timeout=RUNPOD_TIMEOUT_S + 10,
+                )
+            print("[tryon_look] served by RunPod IDM-VTON (chained).")
+            return {
+                "status": "success", "engine": "runpod-idm-vton",
+                "applied": [g["category"] for g in garments], "result_image": current,
+            }
+        except Exception as e:
+            print(f"[tryon_look] RunPod unavailable ({type(e).__name__}: {e}); trying next engine.")
+
+    # 0b. Gemini dresses the WHOLE outfit in ONE call (no slow chaining).
+    if GEMINI_API_KEY:
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(
+                    _gemini_tryon, request.person_image,
+                    [{"image": g["image"], "category": g["category"]} for g in garments],
+                ),
+                timeout=150,
+            )
+            print("[tryon_look] served by Gemini (one-shot).")
+            return {
+                "status": "success", "engine": "gemini",
+                "applied": [g["category"] for g in garments], "result_image": result,
+            }
+        except Exception as e:
+            print(f"[tryon_look] Gemini failed ({type(e).__name__}: {e}); chaining Space.")
+
+    # Fallback: chain one Space pass per garment.
+    current = request.person_image
+    applied = []
+    for g in garments:
+        try:
+            current = await asyncio.wait_for(
+                asyncio.to_thread(
+                    _vton_via_space, current, g["image"], g["description"], g["category"]
+                ),
+                timeout=VTON_SPACE_TIMEOUT_S,
+            )
+            applied.append(g["category"])
+            print(f"[tryon_look] applied {g['category']}")
+        except Exception as e:
+            print(f"[tryon_look] skipped {g['category']} ({type(e).__name__}: {e})")
+
+    if not applied:
+        return {
+            "status": "error",
+            "message": "Try-on was busy or out of GPU quota. Try again shortly.",
+            "result_image": "",
+        }
+    return {
+        "status": "success",
+        "engine": "idm-vton",
+        "applied": applied,
+        "result_image": current,
+    }
 
 
 class AnalyzeRequest(BaseModel):
@@ -537,9 +771,9 @@ async def root():
         </head>
         <body>
             <div class="container">
-                <h1>✨ Qlothi Backend API</h1>
+                <h1>Qlothi Backend API</h1>
                 <p>The AI segmentation engine is online and listening for extension requests.</p>
-                <footer>Made with ❤️ by <strong>Komal</strong></footer>
+                <footer>Built by <strong>Komal</strong></footer>
             </div>
         </body>
     </html>

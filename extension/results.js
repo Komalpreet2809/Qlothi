@@ -3,7 +3,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Guard: if extension was reloaded, chrome.runtime becomes undefined
     if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
-        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;flex-direction:column;gap:16px;"><h2>Extension was reloaded</h2><p>Please close this tab and click a garment again from Pinterest.</p></div>';
+        document.body.innerHTML = '<div class="page-state page-state--full"><h2>Extension was reloaded</h2><p>Close this tab and choose a garment again from Pinterest.</p></div>';
         return;
     }
 
@@ -14,7 +14,41 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentCaption = '';         // BLIP description, e.g. "loose grey wide-leg trousers"
     const grid = document.getElementById('results-grid');
 
-    const TRYON_ENDPOINT = 'https://komalsohal-qlothi.hf.space/tryon';
+    const TRYON_ENDPOINT = 'http://localhost:8009/tryon';
+
+    const showGridError = (title, detail) => {
+        grid.innerHTML = '';
+        const state = document.createElement('div');
+        state.className = 'page-state page-state--error';
+        const heading = document.createElement('h2');
+        heading.textContent = title;
+        const message = document.createElement('p');
+        message.textContent = detail;
+        state.append(heading, message);
+        grid.appendChild(state);
+    };
+
+    const showToast = (message, tone = 'info') => {
+        const existing = document.querySelector('.toast');
+        if (existing) existing.remove();
+        const toast = document.createElement('div');
+        toast.className = `toast toast--${tone}`;
+        toast.setAttribute('role', tone === 'error' ? 'alert' : 'status');
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add('visible'));
+        window.setTimeout(() => toast.remove(), 5000);
+    };
+
+    const heartIcon = () => `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.7-7.5 1.1-1.1a5.5 5.5 0 0 0 0-7.8Z" />
+        </svg>`;
+
+    const closeIcon = `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 7l10 10M17 7 7 17" />
+        </svg>`;
 
     // Pre-load wishlist states
     chrome.storage.local.get({ qlothi_wishlist: [] }, (result) => {
@@ -35,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const filtered = filter === 'all' ? allItems : allItems.filter(item => item.category === filter);
         
         if (filtered.length === 0) {
-            grid.innerHTML = '<p style="text-align:center;width:100%;color:#888;">No results found.</p>';
+            grid.innerHTML = '<div class="page-state"><h2>No matches found</h2><p>Try another garment or Pin.</p></div>';
             return;
         }
 
@@ -43,29 +77,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = 'product-card';
             
-            // Create star rating HTML
-            const fullStars = Math.floor(item.rating || 4);
-            let starsHtml = '';
-            for(let j=0; j<5; j++) {
-                if(j < fullStars) starsHtml += '★';
-                else starsHtml += '☆';
-            }
-            
             const storeInitial = (item.store || item.name || '?')[0].toUpperCase();
             const isSaved = savedLinks.has(item.link);
+            const rating = item.rating || '4.0';
             
             card.innerHTML = `
-                <button class="wishlist-btn ${isSaved ? 'saved' : ''}" aria-label="Save to Wishlist">${isSaved ? '♥️' : '🤍'}</button>
+                <button class="wishlist-btn ${isSaved ? 'saved' : ''}" type="button" aria-label="${isSaved ? 'Remove from' : 'Save to'} wardrobe" aria-pressed="${isSaved}">${heartIcon()}</button>
                 <div class="p-img-box">
-                    <img src="${item.image}" alt="${item.name}" 
-                         onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=&quot;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#ffecd2,#fcb69f);font-size:64px;font-weight:900;color:rgba(0,0,0,0.15);&quot;>${storeInitial}</div>'">
+                    <img src="${item.image}" alt="${item.name}">
                 </div>
                 <div class="p-info">
                     <div class="p-brand">${item.store || 'Store'}</div>
                     <h2 class="p-name">${item.name}</h2>
                     <div class="p-rating">
-                        <span class="stars">${starsHtml}</span>
-                        <span class="rating-val">${item.rating || '4.0'}</span>
+                        <span class="rating-label">Rating</span>
+                        <span class="rating-val">${rating}</span>
                         <span class="reviews">(${item.reviews || '12'})</span>
                     </div>
                     <div class="p-price-row">
@@ -76,6 +102,13 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             
             const heartBtn = card.querySelector('.wishlist-btn');
+            const productImage = card.querySelector('.p-img-box img');
+            productImage.addEventListener('error', () => {
+                const fallback = document.createElement('div');
+                fallback.className = 'product-image-fallback';
+                fallback.textContent = storeInitial;
+                productImage.replaceWith(fallback);
+            });
             heartBtn.addEventListener('click', () => {
                 chrome.storage.local.get({ qlothi_wishlist: [] }, (res) => {
                     let list = res.qlothi_wishlist;
@@ -84,13 +117,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         list = list.filter(i => i.link !== item.link);
                         savedLinks.delete(item.link);
                         heartBtn.classList.remove('saved');
-                        heartBtn.textContent = '🤍';
+                        heartBtn.innerHTML = heartIcon();
+                        heartBtn.setAttribute('aria-label', 'Save to wardrobe');
+                        heartBtn.setAttribute('aria-pressed', 'false');
                     } else {
                         // Add
                         list.push(item);
                         savedLinks.add(item.link);
                         heartBtn.classList.add('saved');
-                        heartBtn.textContent = '♥️';
+                        heartBtn.innerHTML = heartIcon();
+                        heartBtn.setAttribute('aria-label', 'Remove from wardrobe');
+                        heartBtn.setAttribute('aria-pressed', 'true');
                     }
                     chrome.storage.local.set({ qlothi_wishlist: list });
                 });
@@ -145,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('item-query').textContent = "AI analyzing style...";
                 
                 // Fetch AI Semantic Caption first
-                fetch('https://komalsohal-qlothi.hf.space/caption', {
+                fetch('http://localhost:8009/caption', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ base64_image: croppedBase64 })
@@ -166,12 +203,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                 allItems = data.items;
                                 renderItems();
                             } else {
-                                grid.innerHTML = '<p style="color:red;padding:20px;">Backend Error: ' + (data.message || 'Unknown error') + '</p>';
+                                showGridError('Search unavailable', data.message || 'The product search returned an unexpected response.');
                             }
                         } else {
                             console.error("Backend Proxy Error:", res ? res.error : 'Unknown error');
                             document.getElementById('item-query').textContent = "Connection Failed";
-                            grid.innerHTML = '<p style="color:red;padding:20px;">Could not connect to Qlothi Backend. Make sure it is running. Error: ' + (res ? res.error : 'Unknown') + '</p>';
+                            showGridError('Could not connect to Qlothi', res ? res.error : 'Make sure the local backend is running.');
                         }
                     });
                 });
@@ -183,12 +220,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---- Virtual Try-On ----
     const runTryOn = () => {
         if (!currentGarmentCrop) {
-            alert('Hang on — still preparing the garment. Try again in a second.');
+            showToast('The garment is still being prepared. Try again in a moment.');
             return;
         }
         chrome.storage.local.get({ qlothi_person_photo: '' }, (res) => {
             if (!res.qlothi_person_photo) {
-                alert('Add your photo first: click the Qlothi icon in the toolbar → "My Photo" → upload a full-body picture.');
+                showToast('Add a full-body photo under My photo in the Qlothi toolbar menu.');
                 return;
             }
             openTryOnModal(res.qlothi_person_photo);
@@ -203,13 +240,13 @@ document.addEventListener('DOMContentLoaded', () => {
         overlay.className = 'tryon-overlay';
         overlay.innerHTML = `
             <div class="tryon-modal">
-                <button class="tryon-close" aria-label="Close">✕</button>
-                <h2 class="tryon-title">Virtual Try-On</h2>
+                <button class="tryon-close" type="button" aria-label="Close">${closeIcon}</button>
+                <h2 class="tryon-title">Virtual try-on</h2>
                 <p class="tryon-sub">${currentItemName}</p>
                 <div class="tryon-stage">
                     <div class="tryon-loading">
                         <div class="spinner"></div>
-                        <p id="tryon-status">Dressing you up… this can take up to a minute.</p>
+                        <p id="tryon-status">Creating your preview. This can take up to a minute.</p>
                     </div>
                 </div>
                 <div class="tryon-foot" id="tryon-foot"></div>
@@ -239,10 +276,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 stage.innerHTML = `<img class="tryon-result" src="${data.result_image}" alt="You wearing ${currentItemName}">`;
                 const badge = data.engine === 'overlay'
                     ? `<span class="tryon-badge">Quick preview · live try-on was busy</span>`
-                    : `<span class="tryon-badge live">✨ AI try-on</span>`;
-                foot.innerHTML = `${badge}<a class="tryon-dl" href="${data.result_image}" download="qlothi-tryon.jpg">⬇ Save image</a>`;
+                    : `<span class="tryon-badge live">AI-generated preview</span>`;
+                foot.innerHTML = `${badge}<a class="tryon-dl" href="${data.result_image}" download="qlothi-tryon.jpg">Save image</a>`;
             } else {
-                stage.innerHTML = `<div class="tryon-error">😕<p>${data.message || 'Try-on failed. Please try again.'}</p></div>`;
+                stage.innerHTML = `<div class="tryon-error"><span class="tryon-error-mark" aria-hidden="true">!</span><p>${data.message || 'Try-on failed. Please try again.'}</p></div>`;
             }
         });
     };

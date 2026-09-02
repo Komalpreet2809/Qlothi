@@ -24,6 +24,17 @@ function resizeImageFile(file, maxSide = 768) {
     });
 }
 
+function showPopupMessage(message) {
+    const existing = document.querySelector('.popup-message');
+    if (existing) existing.remove();
+    const notice = document.createElement('div');
+    notice.className = 'popup-message';
+    notice.setAttribute('role', 'alert');
+    notice.textContent = message;
+    document.body.appendChild(notice);
+    window.setTimeout(() => notice.remove(), 5000);
+}
+
 function renderMyPhoto() {
     const body = document.getElementById('myphoto-body');
     const input = document.getElementById('photo-input');
@@ -60,7 +71,7 @@ function renderMyPhoto() {
             const dataUrl = await resizeImageFile(file);
             chrome.storage.local.set({ qlothi_person_photo: dataUrl }, renderMyPhoto);
         } catch (e) {
-            alert('Could not read that image. Try a different photo.');
+            showPopupMessage('Could not read that image. Try a different photo.');
         }
         input.value = ''; // allow re-selecting the same file later
     };
@@ -77,13 +88,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const items = res.qlothi_wishlist;
             
             if (!items || items.length === 0) {
-                grid.style.display = 'none';
-                emptyState.style.display = 'flex';
+                grid.hidden = true;
+                emptyState.hidden = false;
                 return;
             }
 
-            grid.style.display = 'flex';
-            emptyState.style.display = 'none';
+            grid.hidden = false;
+            emptyState.hidden = true;
             grid.innerHTML = ''; // clear
 
             items.forEach((item, index) => {
@@ -96,18 +107,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 card.innerHTML = `
                     <div class="w-img-box">
-                        <img src="${item.image}" alt="Saved item" onerror="this.style.display='none';">
+                        <img src="${item.image}" alt="${item.name || 'Saved product'}">
                     </div>
                     <div class="w-info">
                         <div class="w-brand">${item.store || 'Store'}</div>
                         <div class="w-name">${item.name || 'Product'}</div>
                         <div class="w-price">${item.price && item.price !== '—' ? item.price : 'Check Price'}</div>
                     </div>
-                    <button class="remove-btn" title="Remove from wardrobe">✕</button>
+                    <button class="remove-btn" type="button" title="Remove from wardrobe" aria-label="Remove ${item.name || 'product'} from wardrobe">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17" /></svg>
+                    </button>
                 `;
 
                 // Handle removal
                 const rmBtn = card.querySelector('.remove-btn');
+                const productImage = card.querySelector('.w-img-box img');
+                productImage.addEventListener('error', () => {
+                    productImage.hidden = true;
+                    productImage.parentElement.classList.add('image-unavailable');
+                });
                 rmBtn.addEventListener('click', (e) => {
                     e.preventDefault(); // prevent opening the link
                     e.stopPropagation();

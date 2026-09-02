@@ -1,372 +1,487 @@
+:root {
+  --ql-red: #e60023;
+  --ql-red-hover: #ad081b;
+  --ql-text: #111111;
+  --ql-muted: #767676;
+  --ql-surface: #efefef;
+  --ql-surface-hover: #e2e2e2;
+  --ql-border: #dedede;
+  --ql-white: #ffffff;
+}
+
 .qlothi-btn {
-  position: static;
-  margin-right: 8px;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 9999;
+  min-width: 64px;
   height: 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  z-index: 9999;
-  background-color: #e60023;
-  color: white;
-  border: none;
+  padding: 0 18px;
+  border: 0;
   border-radius: 24px;
-  padding: 0 16px;
-  font-weight: 700;
+  background: var(--ql-red);
+  color: var(--ql-white);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.2s ease;
-  font-family: inherit;
+  transition: background-color 160ms ease, transform 120ms ease;
 }
 
-.qlothi-btn:hover {
-  background-color: #ad081b;
+.qlothi-btn:hover { background: var(--ql-red-hover); }
+.qlothi-btn:active { transform: scale(0.97); }
+
+.qlothi-btn:focus-visible,
+.qlothi-modal button:focus-visible,
+.qlothi-modal a:focus-visible,
+.qlothi-look-overlay button:focus-visible,
+.qlothi-look-overlay a:focus-visible {
+  outline: 3px solid rgba(74, 138, 212, 0.55);
+  outline-offset: 2px;
 }
 
-.qlothi-btn:active {
-  transform: scale(0.95);
-}
-
-.qlothi-btn-spinner {
-  width: 20px;
-  height: 20px;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: #ffffff;
-  animation: qlothi-spin 1s linear infinite;
+.qlothi-btn-spinner,
+.qlothi-look-spinner {
+  width: 22px;
+  height: 22px;
   display: inline-block;
+  border: 3px solid rgba(255, 255, 255, 0.45);
+  border-top-color: var(--ql-white);
+  border-radius: 50%;
+  animation: qlothi-spin 800ms linear infinite;
 }
 
-@keyframes qlothi-spin {
-  to { transform: rotate(360deg); }
+@keyframes qlothi-spin { to { transform: rotate(360deg); } }
+
+.qlothi-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  z-index: 2147483647;
+  width: min(440px, calc(100vw - 32px));
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 18px;
+  border-radius: 16px;
+  background: var(--ql-text);
+  color: var(--ql-white);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  opacity: 0;
+  transform: translate(-50%, -8px);
+  transition: opacity 160ms ease, transform 160ms ease;
 }
 
-.qlothi-overlay {
-  z-index: 1000;
-  /* Allow clicking through the empty space of the SVG to grab underlying images etc if needed, though pointer-events: none on the SVG itself handles this */
+.qlothi-toast.visible { opacity: 1; transform: translate(-50%, 0); }
+.qlothi-toast > span { min-width: 0; flex: 1; }
+
+.qlothi-toast button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--ql-white);
+  cursor: pointer;
 }
+
+.qlothi-toast button:hover { background: rgba(255, 255, 255, 0.25); }
+
+.qlothi-toast button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+}
+
+.qlothi-overlay { z-index: 10; }
 
 .qlothi-item {
-  /* Default color (fallback) */
-  --item-color: 230, 0, 35; 
-  
-  fill: rgba(var(--item-color), 0.0);
-  stroke: rgba(var(--item-color), 0.8);
+  fill: rgba(230, 0, 35, 0);
+  stroke: rgba(230, 0, 35, 0);
   stroke-width: 2px;
   stroke-dasharray: 5 5;
-  transition: fill 0.2s ease, stroke 0.2s ease;
   cursor: pointer;
+  transition: fill 160ms ease, stroke 160ms ease;
 }
 
-/* Color Palette Mappings */
-.qlothi-item[data-class="Hat"] { --item-color: 255, 107, 107; }
-.qlothi-item[data-class="Sunglasses"] { --item-color: 78, 205, 196; }
-.qlothi-item[data-class="Top / Upper Wear"],
-.qlothi-item[data-class="upper-clothes"] { --item-color: 165, 148, 249; }
-.qlothi-item[data-class="Skirt"] { --item-color: 255, 159, 28; }
-.qlothi-item[data-class="Pants"] { --item-color: 69, 123, 157; }
-.qlothi-item[data-class="Dress"] { --item-color: 242, 95, 92; }
-.qlothi-item[data-class="Belt"] { --item-color: 112, 193, 179; }
-.qlothi-item[data-class="Footwear"],
-.qlothi-item[data-class*="shoe"] { --item-color: 36, 123, 160; }
-.qlothi-item[data-class="Bag"] { --item-color: 80, 81, 79; }
-.qlothi-item[data-class="Scarf / Accessory"],
-.qlothi-item[data-class="scarf"] { --item-color: 255, 230, 109; }
-
 .qlothi-item.hovered {
-  fill: rgba(var(--item-color), 0.3);
-  stroke: rgba(var(--item-color), 1);
-  stroke-dasharray: 5 5;
+  fill: rgba(230, 0, 35, 0.16);
+  stroke: var(--ql-red);
 }
 
 .qlothi-modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(5px);
-  z-index: 100000;
+  inset: 0;
+  z-index: 2147483600;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.68);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 .qlothi-modal {
   position: relative;
-  background: #fff;
-  padding: 24px;
-  border-radius: 24px;
-  max-width: 90vw;
-  max-height: 90vh;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  max-width: min(92vw, 1000px);
+  max-height: calc(100vh - 48px);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  padding: 12px;
+  border-radius: 24px;
+  background: var(--ql-white);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+}
+
+.qlothi-modal-close,
+.qlothi-shop-close,
+.qlothi-look-close {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ql-surface);
+  color: var(--ql-text);
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.qlothi-modal-close:hover,
+.qlothi-shop-close:hover,
+.qlothi-look-close:hover { background: var(--ql-surface-hover); }
+
+.qlothi-modal-close svg,
+.qlothi-shop-close svg,
+.qlothi-look-close svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
 }
 
 .qlothi-modal-close {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  background: #efefef;
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  font-size: 20px;
-  cursor: pointer;
+  top: 28px;
+  right: 28px;
   z-index: 1000;
-  transition: background 0.2s;
-}
-
-.qlothi-modal-close:hover {
-  background: #e2e2e2;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
 }
 
 .qlothi-modal-img-wrapper {
   position: relative;
-  border-radius: 16px;
-  max-height: calc(90vh - 48px);
+  min-height: 0;
+  max-height: calc(100vh - 132px);
   display: flex;
+  flex: 1 1 auto;
   justify-content: center;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--ql-surface);
+  transition: filter 180ms ease, opacity 180ms ease;
 }
+
+.qlothi-modal-img-wrapper.blurred { filter: blur(4px); opacity: 0.62; }
 
 .qlothi-modal-img {
   max-width: 100%;
-  max-height: calc(90vh - 48px);
-  object-fit: contain;
+  max-height: calc(100vh - 132px);
   display: block;
+  object-fit: contain;
 }
 
-/* Interactive Links Styles */
 .qlothi-link-group circle.qlothi-dot-start {
-  fill: #000;
-  stroke: none;
-  opacity: 0.8;
-  transition: opacity 0.2s, r 0.2s;
+  fill: var(--ql-text);
+  stroke: var(--ql-white);
+  stroke-width: 2px;
+  transition: r 160ms ease;
 }
 
 .qlothi-link-group circle.qlothi-dot-end {
-  fill: transparent;
-  stroke: #000;
+  fill: var(--ql-white);
+  stroke: var(--ql-text);
   stroke-width: 2px;
-  transition: stroke-width 0.2s, r 0.2s;
+  transition: r 160ms ease;
 }
 
 .qlothi-link-group line.qlothi-line {
-  stroke: #000;
+  stroke: var(--ql-text);
   stroke-width: 2px;
   stroke-linecap: round;
-  opacity: 0.8;
-  transition: opacity 0.2s, stroke-width 0.2s;
 }
 
-.qlothi-link-group.hovered circle.qlothi-dot-start {
-  r: 5;
-  opacity: 1;
-}
-
-.qlothi-link-group.hovered line.qlothi-line {
-  opacity: 1;
-  stroke-width: 3px;
-}
-
-.qlothi-link-group.hovered circle.qlothi-dot-end {
-  stroke-width: 3px;
-  r: 6;
-}
+.qlothi-link-group.hovered circle.qlothi-dot-start { r: 5; }
+.qlothi-link-group.hovered circle.qlothi-dot-end { r: 6; }
 
 .qlothi-shop-circle {
-  /* Default color (fallback) */
-  --item-color: 136, 136, 136; 
-
   position: absolute;
-  background: white;
-  border: 3px solid rgba(var(--item-color), 1);
-  border-radius: 50%;
-  width: 22px;
-  height: 22px;
-  cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 20;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
   padding: 0;
+  border: 3px solid var(--ql-white);
+  border-radius: 50%;
+  background: var(--ql-red);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transition: background-color 160ms ease, transform 160ms ease;
 }
-
-/* Multi-color support for shop circles */
-.qlothi-shop-circle[data-class="Hat"] { --item-color: 255, 107, 107; }
-.qlothi-shop-circle[data-class="Sunglasses"] { --item-color: 78, 205, 196; }
-.qlothi-shop-circle[data-class="Top / Upper Wear"],
-.qlothi-shop-circle[data-class="upper-clothes"] { --item-color: 165, 148, 249; }
-.qlothi-shop-circle[data-class="Skirt"] { --item-color: 255, 159, 28; }
-.qlothi-shop-circle[data-class="Pants"] { --item-color: 69, 123, 157; }
-.qlothi-shop-circle[data-class="Dress"] { --item-color: 242, 95, 92; }
-.qlothi-shop-circle[data-class="Belt"] { --item-color: 112, 193, 179; }
-.qlothi-shop-circle[data-class="Footwear"],
-.qlothi-shop-circle[data-class*="shoe"] { --item-color: 36, 123, 160; }
-.qlothi-shop-circle[data-class="Bag"] { --item-color: 80, 81, 79; }
-.qlothi-shop-circle[data-class="Scarf / Accessory"],
-.qlothi-shop-circle[data-class="scarf"] { --item-color: 255, 230, 109; }
 
 .qlothi-shop-circle::after {
   content: '';
-  width: 8px;
-  height: 8px;
-  background: rgba(var(--item-color), 1);
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  transition: background 0.2s ease;
+  background: var(--ql-white);
 }
 
-.qlothi-shop-circle:hover {
-  background: #444;
-  border-color: #444;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-  transform: translate(-50%, -50%) scale(1.3) !important;
-}
-
-.qlothi-shop-circle:hover::after {
-  background: white;
-}
-
+.qlothi-shop-circle:hover,
 .qlothi-shop-circle.hovered {
-  border-color: #444;
+  background: var(--ql-red-hover);
+  transform: translate(-50%, -50%) scale(1.18) !important;
 }
 
-.qlothi-shop-circle.hovered::after {
-  background: #444;
-}
-
-/* Glassmorphism Shopping Modal */
 .qlothi-shop-modal {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) scale(0.9);
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 32px;
-  padding: 32px;
-  width: 400px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
   z-index: 100001;
-  opacity: 0;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  pointer-events: auto;
+  width: min(400px, calc(100vw - 48px));
   display: flex;
   flex-direction: column;
   gap: 20px;
+  padding: 28px;
+  border: 1px solid var(--ql-border);
+  border-radius: 24px;
+  background: var(--ql-white);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.24);
+  opacity: 0;
+  pointer-events: auto;
+  transform: translate(-50%, -48%);
+  transition: opacity 160ms ease, transform 160ms ease;
 }
 
-.qlothi-shop-modal.visible {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
-}
+.qlothi-shop-modal.visible { opacity: 1; transform: translate(-50%, -50%); }
 
-.qlothi-shop-header {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
+.qlothi-shop-header { display: flex; flex-direction: column; gap: 6px; padding-right: 40px; }
 
 .qlothi-shop-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: #111;
   margin: 0;
-  letter-spacing: -0.5px;
+  color: var(--ql-text);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.25;
 }
 
-.qlothi-shop-subtitle {
-  font-size: 14px;
-  color: #666;
-  margin: 0;
-}
+.qlothi-shop-subtitle { margin: 0; color: var(--ql-muted); font-size: 14px; line-height: 1.4; }
 
-.qlothi-shop-results {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+.qlothi-shop-close { position: absolute; top: 16px; right: 16px; }
+.qlothi-shop-results { display: flex; flex-direction: column; gap: 8px; }
 
 .qlothi-shop-item {
+  min-height: 56px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  border-radius: 20px;
-  text-decoration: none;
-  color: #111;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 16px;
+  color: var(--ql-text);
+  font-size: 15px;
   font-weight: 600;
-  transition: all 0.2s ease;
+  text-decoration: none;
+  transition: background-color 160ms ease;
 }
 
-.qlothi-shop-item:hover {
-  background: rgba(255, 255, 255, 0.9);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border-color: #E60023;
-}
+.qlothi-shop-item:hover { background: var(--ql-surface); }
 
 .qlothi-shop-item-icon {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f0f0f0;
-  border-radius: 10px;
-  font-size: 18px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--ql-text);
+  color: var(--ql-white);
+  font-size: 16px;
+  font-weight: 800;
 }
 
-.qlothi-shop-item-text {
-  flex: 1;
-  margin-left: 12px;
-}
+.qlothi-shop-item-icon--qlothi,
+.qlothi-shop-item-icon--pinterest { background: var(--ql-red); }
+.qlothi-shop-item-icon--google { background: var(--ql-surface); color: #4285f4; }
+
+.qlothi-shop-item-text { min-width: 0; flex: 1; }
 
 .qlothi-shop-arrow {
-  opacity: 0.3;
-  font-size: 14px;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  width: 8px;
+  height: 8px;
+  margin-right: 10px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  color: var(--ql-muted);
+  transform: rotate(45deg);
 }
 
-.qlothi-shop-item:hover .qlothi-shop-arrow {
-  opacity: 1;
-  transform: translateX(4px);
-  color: #E60023;
-}
-
-/* Modal Close for Shop Modal */
-.qlothi-shop-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: rgba(0, 0, 0, 0.05);
-  border: none;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
+.qlothi-modal-actions {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  flex: 0 0 auto;
+  padding: 12px 4px 2px;
+}
+
+.qlothi-look-btn {
+  position: static;
+  min-height: 48px;
+  min-width: 200px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 24px;
+  background: var(--ql-red);
+  color: var(--ql-white);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s ease;
+  box-shadow: none;
+  transition: background-color 160ms ease, transform 120ms ease;
 }
 
-.qlothi-shop-close:hover {
-  background: rgba(0, 0, 0, 0.1);
+.qlothi-look-btn:hover { background: var(--ql-red-hover); }
+.qlothi-look-btn:active { transform: scale(0.97); }
+
+@media (max-width: 560px) {
+  .qlothi-modal-overlay { padding: 12px; }
+  .qlothi-modal { max-width: 100%; max-height: calc(100vh - 24px); }
+  .qlothi-modal-img-wrapper,
+  .qlothi-modal-img { max-height: calc(100vh - 108px); }
+  .qlothi-look-btn { width: 100%; }
 }
 
-/* Blur effect for background when shop modal is open */
-.qlothi-modal-img-wrapper.blurred {
-  filter: blur(10px);
-  transition: filter 0.4s ease;
+.qlothi-look-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.68);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--ql-text);
+}
+
+.qlothi-look-card {
+  position: relative;
+  width: min(460px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 28px;
+  border-radius: 24px;
+  background: var(--ql-white);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+  text-align: center;
+}
+
+.qlothi-look-close { position: absolute; top: 16px; right: 16px; }
+
+.qlothi-look-card h2 {
+  margin: 0;
+  padding: 0 44px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.3;
+}
+
+.qlothi-look-sub { margin: 6px 0 20px; color: var(--ql-muted); font-size: 14px; line-height: 1.45; }
+
+.qlothi-look-stage {
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--ql-surface);
+}
+
+.qlothi-look-spinner {
+  width: 36px;
+  height: 36px;
+  border-color: #d4d4d4;
+  border-top-color: var(--ql-text);
+}
+
+.qlothi-look-result { width: 100%; display: block; }
+
+.qlothi-look-save {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+  padding: 0 18px;
+  border-radius: 20px;
+  background: var(--ql-red);
+  color: var(--ql-white);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.qlothi-look-save:hover { background: var(--ql-red-hover); }
+
+.qlothi-look-error { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 24px; }
+
+.qlothi-look-error > span {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ql-white);
+  color: var(--ql-red);
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.qlothi-look-error p { max-width: 280px; margin: 0; color: var(--ql-muted); font-size: 14px; line-height: 1.45; }
+
+@media (prefers-reduced-motion: reduce) {
+  .qlothi-btn,
+  .qlothi-item,
+  .qlothi-shop-circle,
+  .qlothi-shop-modal,
+  .qlothi-modal-img-wrapper,
+  .qlothi-look-btn,
+  .qlothi-toast { transition-duration: 0.01ms !important; }
+
+  .qlothi-btn-spinner,
+  .qlothi-look-spinner { animation-duration: 1.5s; }
 }
