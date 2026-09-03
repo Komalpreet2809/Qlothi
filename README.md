@@ -76,4 +76,3 @@ The backend is currently hosted and running on Hugging Face. If you wish to run 
 
 ---
 
-Made with ❤️ by **Komal** for the fashion-forward.
